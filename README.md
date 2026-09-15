@@ -12,3 +12,17 @@
 <h4 align="center">
 :construction: Proyecto en construcción :construction:
 </h4>
+<ul>
+  <li>
+    Se estará implementado un menú para poder cambiar el repartidor 
+  </li>
+  <li>
+    Bonificaciones entre mas tiempo lleves jugando 
+  </li>
+  <li>
+    Ranking del jugador con mas tiempo halla durado
+  </li>
+</ul>
+
+<h1>Licencia</h1>
+Pizza Survivor <a href="https://github.com/ibarguen-dev/Pizza-Survivor/blob/main/LICENSE">MIT License</a>
