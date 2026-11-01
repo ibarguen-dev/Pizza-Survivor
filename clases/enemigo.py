@@ -2,12 +2,21 @@ import pygame
 import random
 import math
 
+from clases.config import VIDAS_ENEMIGO_COMUN
+from clases.rutas import resolver
+
 
 class Enemigo:
     ancho = 0
     alto = 0
     velocidad = 0
     imagen = None
+    # Los enemigos comunes tienen una sola vida: un golpe los elimina
+    vidas = VIDAS_ENEMIGO_COMUN
+    # Radio con el que cuentan como golpeados por los proyectiles
+    radio_colision = 30
+    # Los jefes tienen su propio comportamiento (ver clases/jefe.py)
+    es_jefe = False
 
     def __init__(self):
         self.x, self.y = self.obtener_posicion_inicial()
@@ -35,6 +44,15 @@ class Enemigo:
             self.x += (dx / distancia) * self.velocidad
             self.y += (dy / distancia) * self.velocidad
 
+    def actualizar_movimiento(self, objetivo_x, objetivo_y):
+        """Persigue al objetivo. Los jefes y la jauría cambian este comportamiento."""
+        self.mover_hacia(objetivo_x, objetivo_y)
+
+    def recibir_dano(self, cantidad=1):
+        """Quita vidas al enemigo. Devuelve True si murió."""
+        self.vidas -= cantidad
+        return self.vidas <= 0
+
     def obtener_centro(self):
         return (self.x + self.ancho // 2, self.y + self.alto // 2)
 
@@ -49,7 +67,7 @@ class Enemigo:
         cx2, cy2 = otro.obtener_centro()
         dx = cx1 - cx2
         dy = cy1 - cy2
-        return math.sqrt(dx ** 2 + dy ** 2) < 30
+        return math.sqrt(dx ** 2 + dy ** 2) < self.radio_colision
 
     def esta_fuera_de_pantalla(self, ancho_pantalla, alto_pantalla, margen=50):
         return (self.x < -margen or self.x > ancho_pantalla + margen or
@@ -60,7 +78,7 @@ class Enemigo:
 
     @classmethod
     def cargar_imagen(cls, ruta):
-        cls.imagen = pygame.image.load(ruta)
+        cls.imagen = pygame.image.load(resolver(ruta))
         cls.imagen = pygame.transform.scale(cls.imagen, (cls.ancho, cls.alto))
 
     def dibujar(self, pantalla):

@@ -1,6 +1,8 @@
 import pygame
 import math
 
+from clases.rutas import resolver
+
 
 class Proyectil:
     ancho = 0
@@ -43,11 +45,11 @@ class Proyectil:
         ex, ey = enemigo.obtener_centro()
         dx = cx - ex
         dy = cy - ey
-        return math.sqrt(dx ** 2 + dy ** 2) < 30
+        return math.sqrt(dx ** 2 + dy ** 2) < enemigo.radio_colision
 
     @classmethod
     def cargar_imagen(cls, ruta):
-        cls.imagen = pygame.image.load(ruta)
+        cls.imagen = pygame.image.load(resolver(ruta))
         cls.imagen = pygame.transform.scale(cls.imagen, (cls.ancho, cls.alto))
 
     def dibujar(self, pantalla):

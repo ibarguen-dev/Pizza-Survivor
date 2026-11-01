@@ -1,152 +1,156 @@
+"""Pizza Survivor - punto de entrada.
+
+
+Flujo de la aplicación:
+
+    MENU  ->  JUGANDO  ->  FIN (game over)  ->  JUGANDO | MENU
+
+En el menú se puede empezar una partida o leer las instrucciones. Al perder
+todas las vidas aparece la pantalla de fin, que espera a que el jugador pulse
+S (jugar de nuevo) o N (cerrar el juego).
+"""
 import pygame
+
 from clases.config import (
-    ANCHO_PANTALLA, ALTO_PANTALLA, TITULO_VENTANA,
-    INTERVALO_LANZAMIENTO, VOLUMEN_MUSICA, VOLUMEN_SONIDOS,
-    ESTADO_TERMINADO,
+    ALTO_PANTALLA, ANCHO_PANTALLA, FPS,
+    ESTADO_FIN, ESTADO_JUGANDO, ESTADO_MENU, TITULO_VENTANA,
+    VOLUMEN_MUSICA, VOLUMEN_SONIDOS,
 )
-from clases.repartidor import Repartidor
-from clases.perro import Perro
-from clases.gato import Gato
-from clases.pizza import Pizza
-from clases.gestor_enemigos import GestorEnemigos
-from clases.gestor_proyectiles import GestorProyectiles
-from clases.gestor_estado import GestorEstado
-from clases.config import INTERVALO_SPAWN_INICIAL
+from clases.juego import Juego
+from clases.rutas import resolver
+from clases.ui import (
+    ACCION_JUGAR, ACCION_REINICIAR, ACCION_SALIR, Menu, PantallaFin,
+)
 
-pygame.init()
-pygame.mixer.init()
-
-# Pantalla
-pantalla = pygame.display.set_mode((ANCHO_PANTALLA, ALTO_PANTALLA))
-pygame.display.set_caption(TITULO_VENTANA)
-icono = pygame.image.load("assets/imagenes/pizza.png")
-pygame.display.set_icon(icono)
-
-# Fondo
-fondo = pygame.image.load("assets/imagenes/fondo.png")
-fondo = pygame.transform.scale(fondo, (ANCHO_PANTALLA, ALTO_PANTALLA))
-
-# Recursos del repartidor
-corazon_img = pygame.image.load("assets/imagenes/corazon.png")
-corazon_img = pygame.transform.scale(corazon_img, (32, 32))
-fuente = pygame.font.Font(None, 36)
-fuente_grande = pygame.font.Font(None, 72)
-fuente_media = pygame.font.Font(None, 48)
-
-# Gestores
-repartidor = Repartidor(368, 440, "assets/imagenes/repartidor.png")
-gestor_enemigos = GestorEnemigos()
-gestor_enemigos.agregar_tipo(Perro, INTERVALO_SPAWN_INICIAL)
-gestor_enemigos.agregar_tipo(Gato, intervalo_spawn=3000,velocidad=0.7)
-gestor_proyectiles = GestorProyectiles(Pizza)
-gestor_estado = GestorEstado()
-
-# Sonidos
-pygame.mixer.music.set_volume(VOLUMEN_MUSICA)
-sonido_disparo = pygame.mixer.Sound("assets/mp3/disparo.mp3")
-sonido_golpe = pygame.mixer.Sound("assets/mp3/golpe.mp3")
-sonido_vida_perdida = pygame.mixer.Sound("assets/mp3/vida_perdida.mp3")
-sonido_disparo.set_volume(VOLUMEN_SONIDOS)
-sonido_golpe.set_volume(VOLUMEN_SONIDOS)
-sonido_vida_perdida.set_volume(VOLUMEN_SONIDOS)
-
-pygame.mixer.music.load("assets/mp3/MusicaFondo.mp3")
-pygame.mixer.music.play(-1)
-
-reloj = pygame.time.Clock()
-tiempo_ultimo_lanzamiento = pygame.time.get_ticks()
-se_ejecuta = True
+# Partida en curso. La usan las pruebas automaticas para inspeccionar el
+# juego sin tener que pasar por la interfaz.
+PARTIDA = {"juego": None}
 
 
-def dibujar_vidas():
-    for i in range(gestor_estado.vidas):
-        pantalla.blit(corazon_img, (10 + i * 36, 10))
+def main():
+    pygame.init()
+    pygame.mixer.init()
 
+    # Pantalla
+    pantalla = pygame.display.set_mode((ANCHO_PANTALLA, ALTO_PANTALLA))
+    pygame.display.set_caption(TITULO_VENTANA)
+    icono = pygame.image.load(resolver("assets/imagenes/pizza.png"))
+    pygame.display.set_icon(icono)
 
-def dibujar_puntaje():
-    texto = fuente.render(f"puntaje: {gestor_estado.puntaje}", True, (255, 255, 255))
-    pantalla.blit(texto, (650, 10))
+    # Fondo
+    fondo = pygame.image.load(resolver("assets/imagenes/fondo.png"))
+    fondo = pygame.transform.scale(fondo, (ANCHO_PANTALLA, ALTO_PANTALLA))
 
+    # Recursos de la interfaz
+    corazon_img = pygame.transform.scale(
+        pygame.image.load(resolver("assets/imagenes/corazon.png")), (32, 32)
+    )
+    fuentes = {
+        "normal": pygame.font.Font(None, 36),
+        "grande": pygame.font.Font(None, 72),
+        "media": pygame.font.Font(None, 48),
+    }
 
-def dibujar_cronometro(tiempo_actual):
-    tt = gestor_estado.obtener_tiempo_transcurrido(tiempo_actual)
-    minutos = tt // 60000
-    segundos = (tt % 60000) // 1000
-    texto = fuente.render(f"Tiempo: {minutos}:{segundos:02d}", True, (255, 255, 255))
-    pantalla.blit(texto, (350, 10))
+    # Sonidos
+    pygame.mixer.music.set_volume(VOLUMEN_MUSICA)
+    sonidos = {
+        "disparo": pygame.mixer.Sound(resolver("assets/mp3/disparo.mp3")),
+        "golpe": pygame.mixer.Sound(resolver("assets/mp3/golpe.mp3")),
+        "vida_perdida": pygame.mixer.Sound(resolver("assets/mp3/vida_perdida.mp3")),
+    }
+    for sonido in sonidos.values():
+        sonido.set_volume(VOLUMEN_SONIDOS)
+    pygame.mixer.music.load(resolver("assets/mp3/MusicaFondo.mp3"))
+    pygame.mixer.music.play(-1)
+    musica_sonando = True
 
+    reloj = pygame.time.Clock()
 
-def dibujar_pantalla_fin():
-    pantalla.fill((0, 0, 0))
-    tt = gestor_estado.tiempo_fin
-    minutos = tt // 60000
-    segundos = (tt % 60000) // 1000
-    texto_go = fuente_grande.render("Game Over", True, (255, 0, 0))
-    pantalla.blit(texto_go, texto_go.get_rect(center=(400, 200)))
-    texto_punt = fuente_media.render(f"Puntaje: {gestor_estado.puntaje}", True, (255, 255, 255))
-    pantalla.blit(texto_punt, texto_punt.get_rect(center=(400, 300)))
-    texto_tiempo = fuente_media.render(f"Tiempo: {minutos}:{segundos:02d}", True, (255, 255, 255))
-    pantalla.blit(texto_tiempo, texto_tiempo.get_rect(center=(400, 380)))
+    menu = Menu(fondo)
+    juego = None
+    pantalla_fin = None
+    mejor_puntaje = 0
+    estado = ESTADO_MENU
+    salir = False
 
+    while not salir:
+        tiempo_actual = pygame.time.get_ticks()
 
- while se_ejecuta:
-    tiempo_actual = pygame.time.get_ticks()
-    for evento in pygame.event.get():
-        if evento.type == pygame.QUIT:
-            se_ejecuta = False
+        # ---------------------------------------------------------------- #
+        # Eventos
+        # ---------------------------------------------------------------- #
+        for evento in pygame.event.get():
+            if estado == ESTADO_MENU:
+                accion = menu.manejar_evento(evento)
+                if accion == ACCION_JUGAR:
+                    juego = Juego(sonidos)
+                    PARTIDA["juego"] = juego
+                    pantalla_fin = None
+                    estado = ESTADO_JUGANDO
+                elif accion == ACCION_SALIR:
+                    salir = True
 
-        if evento.type in (pygame.KEYDOWN, pygame.KEYUP):
-            presionada = evento.type == pygame.KEYDOWN
-            repartidor.recibir_evento_tecla(evento.key, presionada)
+            elif estado == ESTADO_JUGANDO:
+                accion = juego.manejar_evento(evento)
+                if accion == ACCION_SALIR:
+                    salir = True
+                elif accion == "menu":
+                    # ESC: se vuelve al menu principal.
+                    juego = None
+                    PARTIDA["juego"] = None
+                    estado = ESTADO_MENU
 
-    if gestor_estado.juego_terminado():
-        dibujar_pantalla_fin()
-        pygame.display.update()
-        reloj.tick(500)
-        continue
+            elif estado == ESTADO_FIN:
+                accion = pantalla_fin.manejar_evento(evento)
+                if accion == ACCION_REINICIAR:
+                    mejor_puntaje = max(mejor_puntaje, juego.gestor_estado.puntaje)
+                    juego = Juego(sonidos)
+                    PARTIDA["juego"] = juego
+                    pantalla_fin = None
+                    if not musica_sonando:
+                        pygame.mixer.music.play(-1)
+                        musica_sonando = True
+                    estado = ESTADO_JUGANDO
+                elif accion == ACCION_SALIR:
+                    salir = True
 
-    repartidor.mover()
+        # ---------------------------------------------------------------- #
+        # Actualizacion y dibujo
+        # ---------------------------------------------------------------- #
+        if estado == ESTADO_MENU:
+            if not musica_sonando:
+                # La musica se detiene en el game over: se reanuda al volver
+                # al menu.
+                pygame.mixer.music.play(-1)
+                musica_sonando = True
+            menu.dibujar(pantalla)
 
-    # Lógica de juego
-    rx, ry = repartidor.obtener_posicion()
-    gestor_enemigos.actualizar(tiempo_actual, rx + 32, ry + 50)
-    gestor_enemigos.aumentar_dificultad(tiempo_actual)
-
-    if tiempo_actual - tiempo_ultimo_lanzamiento >= INTERVALO_LANZAMIENTO:
-        objetivo = gestor_enemigos.encontrar_mas_cercano(rx + 32, ry + 50)
-        if objetivo:
-            ox, oy = objetivo.obtener_centro()
-            gestor_proyectiles.lanzar(rx + 32, ry + 50, ox, oy)
-            sonido_disparo.play()
-        tiempo_ultimo_lanzamiento = tiempo_actual
-
-    gestor_proyectiles.actualizar()
-    puntos = gestor_proyectiles.detectar_colisiones_enemigos(gestor_enemigos)
-    if puntos > 0:
-        gestor_estado.sumar_puntaje(puntos)
-        sonido_golpe.play()
-
-    if gestor_enemigos.detectar_colision_repartidor(repartidor):
-        if gestor_estado.perder_vida():
-            sonido_vida_perdida.play()
-            if gestor_estado.juego_terminado():
+        elif estado == ESTADO_JUGANDO:
+            if juego.actualizar(tiempo_actual):
+                # Se acabaron las vidas: la partida termina aqui.
                 pygame.mixer.music.stop()
+                musica_sonando = False
+                mejor_puntaje = max(mejor_puntaje, juego.gestor_estado.puntaje)
+                pantalla_fin = PantallaFin(
+                    juego.gestor_estado.puntaje,
+                    juego.gestor_estado.tiempo_fin - juego.gestor_estado.tiempo_inicio,
+                    mejor_puntaje,
+                )
+                estado = ESTADO_FIN
+            else:
+                juego.dibujar(pantalla, fondo, fuentes, corazon_img)
 
-    gestor_estado.actualizar_invencibilidad(tiempo_actual)
+        elif estado == ESTADO_FIN:
+            # Se dibuja la escena congelada de la ultima partida y encima la
+            # pantalla de fin, para que el jugador vea donde se quedo.
+            juego.dibujar(pantalla, fondo, fuentes, corazon_img)
+            pantalla_fin.dibujar(pantalla)
 
-    # Dibujar
-    pantalla.blit(fondo, (0, 0))
-    dibujar_vidas()
-    dibujar_puntaje()
-    dibujar_cronometro(tiempo_actual)
+        pygame.display.update()
+        reloj.tick(FPS)
 
-    if not gestor_estado.esta_invulnerable() or (tiempo_actual // 100) % 2 == 0:
-        repartidor.dibujar(pantalla)
+    pygame.quit()
 
-    gestor_enemigos.dibujar(pantalla)
-    gestor_proyectiles.dibujar(pantalla)
 
-    pygame.display.update()
-    reloj.tick(500)
-
-pygame.quit()
+if __name__ == "__main__":
+    main()

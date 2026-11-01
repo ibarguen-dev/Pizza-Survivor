@@ -4,3 +4,7 @@ DOCUMENTACION.md
 __pycache__
 .idea
 .junie
+dist
+build
+main.spec
+montaje.png

@@ -1,6 +1,6 @@
 import pygame
 from clases.config import (
-    VIDAS_INICIALES, DURACION_INVULNERABILIDAD,
+    VIDAS_INICIALES, VIDAS_MAXIMAS, DURACION_INVULNERABILIDAD,
     ESTADO_JUGANDO, ESTADO_TERMINADO,
 )
 
@@ -29,6 +29,13 @@ class GestorEstado:
 
     def sumar_puntaje(self, puntos=1):
         self.puntaje += puntos
+
+    def ganar_vida(self):
+        """Recupera una vida, hasta el máximo de VIDAS_MAXIMAS. Devuelve True si la ganó."""
+        if self.vidas >= VIDAS_MAXIMAS:
+            return False
+        self.vidas += 1
+        return True
 
     def actualizar_invencibilidad(self, tiempo_actual):
         if self.invulnerable and tiempo_actual - self.tiempo_invulnerable >= self.duracion_invulnerabilidad:

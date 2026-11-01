@@ -3,13 +3,14 @@ from clases.config import (
     VELOCIDAD_REPARTIDOR, REPARTIDOR_ANCHO, REPARTIDOR_ALTO,
     LIMITE_REPARTIDOR_X, LIMITE_REPARTIDOR_Y,
 )
+from clases.rutas import resolver
 
 
 class Repartidor:
     def __init__(self, x, y, imagen_path):
         self.x = x
         self.y = y
-        self.imagen = pygame.image.load(imagen_path)
+        self.imagen = pygame.image.load(resolver(imagen_path))
         self.imagen = pygame.transform.scale(self.imagen, (REPARTIDOR_ANCHO, REPARTIDOR_ALTO))
         self.cambio_x = 0
         self.cambio_y = 0

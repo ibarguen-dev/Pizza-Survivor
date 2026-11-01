@@ -20,13 +20,17 @@ class GestorProyectiles:
         ]
 
     def detectar_colisiones_enemigos(self, gestor_enemigos):
+        """Quita los proyectiles que golpearon y devuelve los enemigos golpeados."""
+        golpeados = []
         eliminados = []
         for i, proyectil in enumerate(self.proyectiles):
-            if gestor_enemigos.detectar_colision_proyectil(proyectil):
+            enemigo = gestor_enemigos.detectar_colision_proyectil(proyectil)
+            if enemigo is not None:
+                golpeados.append(enemigo)
                 eliminados.append(i)
         for i in reversed(eliminados):
             self.proyectiles.pop(i)
-        return len(eliminados)
+        return golpeados
 
     def dibujar(self, pantalla):
         for p in self.proyectiles:
